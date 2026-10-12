@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Packet Scan Tasks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: sign-in, then a role view. Manager: create-task panel + task board. Packer: my / available / finished tasks, then the scan desk for one task. Look: shipping-label paper, mono tracking IDs, orange only for what is still missing. */
+:root{
+  --bg:#E7EBEF; --surface:#FFFFFF; --ink:#10161D; --muted:#566371; --line:#C9D1D9; --focus:#1D5FD0;
+  --pending:#D9500B; --pending-ink:#A63A00; --pending-soft:#FFE9DB;
+  --ok:#157A43; --ok-soft:#D9F2E3;
+  --bad:#BF2A2A; --bad-soft:#FCE0E0;
+  --dup:#8F5E00; --dup-soft:#FFF0C9;
+  --btn:#10161D; --btn-ink:#FFFFFF;
+  --f-display:'Barlow Condensed','Arial Narrow',Arial,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1217; --surface:#151C23; --ink:#E8EDF2; --muted:#8F9CA9; --line:#27313B; --focus:#7DB2FF;
+    --pending:#FF8A4C; --pending-ink:#FFB083; --pending-soft:#3A2314;
+    --ok:#4DC584; --ok-soft:#10301F;
+    --bad:#FF8080; --bad-soft:#391616;
+    --dup:#E8B64A; --dup-soft:#33270C;
+    --btn:#E8EDF2; --btn-ink:#10161D;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1217; --surface:#151C23; --ink:#E8EDF2; --muted:#8F9CA9; --line:#27313B; --focus:#7DB2FF;
+  --pending:#FF8A4C; --pending-ink:#FFB083; --pending-soft:#3A2314;
+  --ok:#4DC584; --ok-soft:#10301F;
+  --bad:#FF8080; --bad-soft:#391616;
+  --dup:#E8B64A; --dup-soft:#33270C;
+  --btn:#E8EDF2; --btn-ink:#10161D;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-block:max(20px,env(safe-area-inset-top,0px)) calc(56px + env(safe-area-inset-bottom,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.wrap{max-width:1040px;margin-inline:auto;display:grid;gap:16px}
+.view{display:grid;gap:16px;min-width:0}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono)}
+
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 14px;padding-bottom:12px;border-bottom:1.5px solid var(--ink)}
+.brand{font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:.04em;text-transform:uppercase;line-height:1}
+.who{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;font-size:14px;min-width:0}
+.who .mono{overflow-wrap:anywhere}
+.role{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:4px;background:var(--btn);color:var(--btn-ink)}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(30px,6vw,42px);letter-spacing:.02em;text-transform:uppercase;margin:0;line-height:1;text-wrap:balance;overflow-wrap:anywhere}
+h2{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.06em;font-size:20px;margin:0}
+.sub{color:var(--muted);margin:6px 0 0;font-size:14px;max-width:60ch}
+.pagehead{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font-weight:600;border:1.5px solid var(--ink);background:transparent;padding:9px 15px;border-radius:6px;cursor:pointer;min-height:42px}
+.btn.primary{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.btn.mini{padding:3px 10px;font-size:13px;font-weight:500;min-height:30px;border-color:var(--line)}
+.btn.warn{border-color:var(--bad);color:var(--bad)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.banner{background:var(--dup-soft);color:var(--dup);border-radius:6px;padding:10px 14px;font-size:14px}
+
+/* sign in */
+.login{display:grid;gap:16px;width:min(440px,100%);margin:6vh auto 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:8px}
+.card .btn{margin-top:6px}
+.card ol{margin:0;padding-inline-start:20px;display:grid;gap:4px}
+.card code{font-family:var(--f-mono);font-size:13px;background:var(--bg);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.fl{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.in{padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);min-width:0;max-width:100%}
+.in.big{font-size:16px;padding:11px 12px;width:100%}
+.err{color:var(--bad);margin:0;font-size:14px}
+
+/* task boards */
+.board{display:grid;gap:8px}
+.bhead{display:flex;align-items:baseline;gap:10px}
+.bhead .c{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px}
+.tasks{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.task{display:grid;grid-template-columns:minmax(0,1fr) 128px minmax(150px,220px) auto;gap:8px 16px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
+.task:first-child{border-top:0}
+.t-main{min-width:0;display:grid;gap:2px}
+.t-name{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0}
+.t-name strong{font-size:17px;overflow-wrap:anywhere}
+.t-meta{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.t-prog{display:grid;gap:4px;min-width:0}
+.t-prog .nums{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.t-act{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+.rename{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0;width:100%}
+.rename .in{flex:1 1 200px;font-size:16px}
+.tasks .empty{padding:22px 16px}
+@media (max-width:760px){
+  .task{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main st" "prog prog" "act act"}
+  .t-main{grid-area:main}.task .pill{grid-area:st;align-self:start}.t-prog{grid-area:prog}.t-act{grid-area:act;justify-content:flex-start}
+}
+
+.pill{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:4px;text-align:center}
+.pill.pending,.pill.open{background:var(--pending-soft);color:var(--pending-ink)}
+.pill.ok,.pill.done{background:var(--ok-soft);color:var(--ok)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.prog{background:var(--dup-soft);color:var(--dup)}
+
+/* task view */
+.taskhead{display:grid;gap:10px}
+.namerow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-width:0}
+.desk,.statcard,.list,.import{background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.desk{padding:16px;display:grid;gap:12px}
+.cap{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.08em;font-weight:600;font-size:16px;color:var(--muted)}
+.scan-row{display:flex;gap:8px;flex-wrap:wrap}
+#scanInput{flex:1 1 240px;min-width:0;font-family:var(--f-mono);font-size:22px;padding:12px 14px;border:2px solid var(--ink);border-radius:6px;background:var(--bg)}
+#scanInput:focus{outline:3px solid var(--focus);outline-offset:2px}
+.ready{font-size:13px;color:var(--muted)}
+.ready.on{color:var(--ok)}
+.ready.off{color:var(--dup)}
+.result{border-radius:6px;padding:14px 16px;display:grid;gap:3px;min-height:104px;align-content:center}
+.result .word{font-family:var(--f-display);font-weight:700;font-size:clamp(32px,8vw,48px);letter-spacing:.03em;text-transform:uppercase;line-height:1}
+.result .rid{font-family:var(--f-mono);font-size:clamp(16px,3.6vw,22px);overflow-wrap:anywhere}
+.result .det{font-size:14px;opacity:.9}
+.result.idle{background:var(--bg);color:var(--muted)}
+.result.ok{background:var(--ok-soft);color:var(--ok)}
+.result.dup{background:var(--dup-soft);color:var(--dup)}
+.result.bad{background:var(--bad-soft);color:var(--bad)}
+.desk-tools{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;font-size:14px}
+.desk-tools label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr)}
+.stat{padding:12px 16px;border-inline-start:1px solid var(--line);min-width:0}
+.stat:first-child{border-inline-start:0}
+.stat .n{font-family:var(--f-display);font-weight:700;font-size:clamp(34px,7vw,52px);line-height:1;font-variant-numeric:tabular-nums}
+.stat .l{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.stat.pending .n{color:var(--pending)}
+.stat.done .n{color:var(--ok)}
+.stat.extra .n{color:var(--bad)}
+.progress{display:flex;align-items:center;gap:12px;padding:0 16px 14px}
+.bar{flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar span{display:block;height:100%;width:0;background:var(--ok);transition:width .2s}
+.pct{font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted);min-width:3.5ch;text-align:right}
+@media (max-width:560px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .stat:nth-child(3){border-inline-start:0}
+  .stat:nth-child(n+3){border-top:1px solid var(--line)}
+}
+
+.lhead{padding:14px 16px;display:grid;gap:10px;border-bottom:1px solid var(--line)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:14px;border:1px solid var(--line);background:transparent;padding:6px 12px;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.chip .c{font-variant-numeric:tabular-nums;opacity:.75;margin-inline-start:6px}
+.ltools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ltools input[type=search]{flex:1 1 200px;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-family:var(--f-mono);font-size:14px}
+.rows{list-style:none;margin:0;padding:0}
+.row{display:grid;grid-template-columns:116px minmax(0,1fr) minmax(0,auto) 108px;gap:4px 14px;align-items:center;padding:9px 16px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.rid{font-family:var(--f-mono);font-size:15px;overflow-wrap:anywhere}
+.rmeta{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.act{justify-self:end}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+.empty.good{color:var(--ok)}
+.more{display:block;margin:12px auto 14px}
+@media (max-width:560px){
+  .row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"pill act" "id id" "meta meta"}
+  .row .pill{grid-area:pill;justify-self:start}
+  .row .rid{grid-area:id}
+  .row .rmeta{grid-area:meta}
+  .row .act{grid-area:act}
+}
+
+.import{padding:16px;display:grid;gap:14px}
+.job{border:1px solid var(--line);border-radius:6px;padding:12px;display:grid;gap:8px;min-width:0}
+.jh{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.jh strong{overflow-wrap:anywhere}
+.tag{font-size:11px;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);border-radius:4px;padding:2px 6px;color:var(--muted)}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.filters div{display:grid;gap:4px;min-width:0}
+.filters .in{width:100%}
+.taskset{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px}
+.taskset div{display:grid;gap:4px;min-width:0}
+.taskset .in{width:100%;font-size:16px}
+@media (max-width:560px){.taskset{grid-template-columns:1fr}}
+.note{font-size:13px;color:var(--muted);margin:0}
+.sum{font-weight:600}
+.sample{display:flex;flex-wrap:wrap;gap:6px}
+.sample span{font-family:var(--f-mono);font-size:13px;background:var(--bg);padding:2px 8px;border-radius:4px}
+.ibtns{display:flex;flex-wrap:wrap;gap:8px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--btn);color:var(--btn-ink);padding:10px 16px;border-radius:6px;font-size:14px;max-width:calc(100vw - 32px);z-index:30}
+.dropveil{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:24px;background:color-mix(in srgb,var(--bg) 90%,transparent)}
+.dropveil div{border:3px dashed var(--ink);border-radius:10px;padding:48px 28px;font-family:var(--f-display);font-size:clamp(26px,6vw,40px);text-transform:uppercase;letter-spacing:.04em;text-align:center}
+.fallback{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:color-mix(in srgb,var(--bg) 80%,transparent)}
+.fallback .box{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:10px;width:min(560px,100%)}
+.fallback textarea{width:100%;min-height:200px;font-family:var(--f-mono);font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px}
+.cam-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.cam{display:grid;gap:6px}
+.camwrap{position:relative;width:100%;max-width:560px;margin-inline:auto;border-radius:8px;overflow:hidden;background:#000}
+#reader{width:100%;height:clamp(112px,22vh,170px);overflow:hidden;display:flex;align-items:center;justify-content:center;border:0!important;padding:0!important;background:#000}
+#reader>div{width:100%;flex:none;border:0!important;padding:0!important}
+#reader video{width:100%!important;height:auto!important;display:block}
+#reader [id^="qr-shaded"]{display:none!important}
+#photoReader{position:absolute;width:1px;height:1px;overflow:hidden;left:-9999px}
+.camframe{--cf:rgba(255,255,255,.9);position:absolute;inset:8% 5%;border:3px solid var(--cf);border-radius:10px;pointer-events:none}
+.camframe::after{content:"";position:absolute;left:4%;right:4%;top:50%;height:2px;background:var(--cf)}
+.camframe.good{--cf:#22C55E;border-width:5px;background:rgba(34,197,94,.16)}
+.camframe.bad{--cf:#EF4444;border-width:5px;background:rgba(239,68,68,.24)}
+body.cam-on .top,body.cam-on .taskhead .sub,body.cam-on .ready,body.cam-on #camNote,body.cam-on #testOk,body.cam-on #testBad{display:none}
+body.cam-on .taskhead h1{font-size:24px}
+body.cam-on .desk{padding:12px;gap:8px}
+body.cam-on .result{min-height:72px;padding:8px 14px}
+body.cam-on .result .word{font-size:clamp(26px,7vw,34px)}
+body.cam-on .stat .n{font-size:clamp(26px,6vw,34px)}
+.camerr{color:var(--bad);font-size:14px;margin:0}
+@media (prefers-reduced-motion:reduce){.bar span{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top" id="appTop" hidden>
+    <div class="brand">Packet Scan Tasks</div>
+    <div class="who">
+      <span class="role" id="whoRole"></span>
+      <span class="mono" id="whoEmail"></span>
+      <button class="btn mini" id="logoutBtn" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <!-- shown until firebase-config.js is filled in -->
+  <section class="login" id="setupView" aria-label="Setup needed" hidden>
+    <div>
+      <h1>Packet Scan Tasks</h1>
+      <p class="sub">One setup step is left before the team can sign in.</p>
+    </div>
+    <div class="card">
+      <strong>Connect a Firebase project</strong>
+      <ol class="note">
+        <li>Create a Firebase project and add a Web app.</li>
+        <li>Paste its config into <code>firebase-config.js</code> in this repository.</li>
+        <li>Turn on Email/Password sign-in and Firestore, then add the 8 team users.</li>
+      </ol>
+      <p class="note">Full steps are in the README of this repository.</p>
+    </div>
+  </section>
+
+  <!-- sign in -->
+  <section class="login" id="loginView" aria-label="Sign in" hidden>
+    <div>
+      <h1>Packet Scan Tasks</h1>
+      <p class="sub">Managers create scan tasks from Excel or PDF. Packers accept a task and scan its packets.</p>
+    </div>
+    <form class="card" id="loginForm" novalidate>
+      <label class="fl" for="lgEmail">Email</label>
+      <input class="in big" id="lgEmail" type="email" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="packer1@packscan.local">
+      <label class="fl" for="lgPass">Password</label>
+      <input class="in big" id="lgPass" type="password" autocomplete="current-password">
+      <p class="err" id="lgErr" hidden></p>
+      <button class="btn primary" id="lgBtn" type="submit">Sign in</button>
+    </form>
+  </section>
+
+  <!-- manager -->
+  <section class="view" id="mgrView" hidden aria-label="Manager tasks">
+    <div class="pagehead">
+      <div>
+        <h1>Tasks</h1>
+        <p class="sub">Upload an Excel or PDF to create a task. Packers see it right away and can accept it.</p>
+      </div>
+      <button class="btn primary" id="newTaskBtn" type="button">New task from Excel / PDF</button>
+    </div>
+    <section class="import" id="importPanel" hidden aria-label="New task"></section>
+    <div class="chips" id="mgrChips">
+      <button class="chip" type="button" data-f="active" aria-pressed="true">Active<span class="c" id="mcActive">0</span></button>
+      <button class="chip" type="button" data-f="open" aria-pressed="false">Open<span class="c" id="mcOpen">0</span></button>
+      <button class="chip" type="button" data-f="accepted" aria-pressed="false">In progress<span class="c" id="mcProg">0</span></button>
+      <button class="chip" type="button" data-f="done" aria-pressed="false">Done<span class="c" id="mcDone">0</span></button>
+      <button class="chip" type="button" data-f="all" aria-pressed="false">All<span class="c" id="mcAll">0</span></button>
+    </div>
+    <ul class="tasks" id="mgrTasks"></ul>
+  </section>
+
+  <!-- packer -->
+  <section class="view" id="packView" hidden aria-label="Packer tasks">
+    <div>
+      <h1>My tasks</h1>
+      <p class="sub">Accept a task to start scanning. Your progress saves as you scan, so you can come back to it on any device.</p>
+    </div>
+    <div class="board"><div class="bhead"><h2>In progress</h2><span class="c" id="pcMine">0</span></div><ul class="tasks" id="packMine"></ul></div>
+    <div class="board"><div class="bhead"><h2>Available to accept</h2><span class="c" id="pcOpen">0</span></div><ul class="tasks" id="packOpen"></ul></div>
+    <div class="board"><div class="bhead"><h2>Finished</h2><span class="c" id="pcDone">0</span></div><ul class="tasks" id="packDone"></ul></div>
+  </section>
+
+  <!-- one task -->
+  <section class="view" id="taskView" hidden aria-label="Task">
+    <div class="taskhead">
+      <div><button class="btn mini" id="backBtn" type="button">&larr; All tasks</button></div>
+      <div class="namerow" id="tvNameRow"></div>
+      <p class="sub" id="tvMeta"></p>
+      <div class="actions">
+        <button class="btn primary" id="finishBtn" type="button" hidden>Finish task</button>
+        <button class="btn" id="exportBtn" type="button">Export report</button>
+      </div>
+    </div>
+
+    <section class="desk" id="desk" aria-label="Scan a packet" hidden>
+      <label class="cap" for="scanInput">Scan a packet</label>
+      <div class="scan-row">
+        <input id="scanInput" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Scan barcode or type ID, then Enter">
+        <button class="btn primary" id="scanBtn" type="button">Check</button>
+      </div>
+      <div class="cam-row">
+        <button class="btn" id="camBtn" type="button">Scan with camera</button>
+        <button class="btn" id="photoBtn" type="button">Scan from photo</button>
+        <button class="btn mini" id="torchBtn" type="button" hidden>Torch on</button>
+        <input type="file" id="photoInput" accept="image/*" capture="environment" hidden>
+      </div>
+      <div class="cam" id="camBox" hidden>
+        <div class="camwrap"><div id="reader"></div><div class="camframe" id="camFrame" aria-hidden="true"></div></div>
+        <p class="note" id="camNote">Hold the barcode inside the frame.</p>
+      </div>
+      <div id="photoReader" aria-hidden="true"></div>
+      <p class="camerr" id="camErr" hidden></p>
+      <div class="ready off" id="ready">Click the box above before scanning.</div>
+      <div class="result idle" id="result" role="status" aria-live="polite"></div>
+      <div class="desk-tools">
+        <button class="btn mini" id="undoBtn" type="button">Undo last</button>
+        <label for="sound"><input type="checkbox" id="sound" checked> Sound</label>
+        <button class="btn mini" id="testOk" type="button">Test good sound</button>
+        <button class="btn mini" id="testBad" type="button">Test error sound</button>
+      </div>
+    </section>
+
+    <section class="statcard" aria-label="Totals">
+      <div class="stats">
+        <div class="stat"><div class="n" id="nTotal">0</div><div class="l">On the list</div></div>
+        <div class="stat done"><div class="n" id="nScanned">0</div><div class="l">Scanned</div></div>
+        <div class="stat pending"><div class="n" id="nPending">0</div><div class="l">Not scanned</div></div>
+        <div class="stat extra"><div class="n" id="nExtra">0</div><div class="l">Not in list</div></div>
+      </div>
+      <div class="progress"><div class="bar"><span id="barFill"></span></div><span class="pct" id="pct">0%</span></div>
+    </section>
+
+    <section class="list" aria-label="Checklist">
+      <div class="lhead">
+        <h2>Checklist</h2>
+        <div class="chips" id="chips">
+          <button class="chip" type="button" data-f="pending" aria-pressed="true">Not scanned<span class="c" id="cPending">0</span></button>
+          <button class="chip" type="button" data-f="scanned" aria-pressed="false">Scanned<span class="c" id="cScanned">0</span></button>
+          <button class="chip" type="button" data-f="extras" aria-pressed="false">Not in list<span class="c" id="cExtra">0</span></button>
+          <button class="chip" type="button" data-f="all" aria-pressed="false">All<span class="c" id="cAll">0</span></button>
+        </div>
+        <div class="ltools">
+          <input type="search" id="q" placeholder="Search tracking ID" aria-label="Search tracking ID" autocomplete="off">
+          <button class="btn mini" id="copyPending" type="button">Copy not-scanned IDs</button>
+          <button class="btn mini" id="copyTable" type="button">Copy as table</button>
+        </div>
+      </div>
+      <ul class="rows" id="rows"></ul>
+      <div class="empty" id="empty" hidden></div>
+      <button class="btn mini more" id="moreBtn" type="button" hidden>Show more</button>
+    </section>
+  </section>
+</div>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm,.csv,.tsv,.ods,.pdf,application/pdf" multiple hidden>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div class="dropveil" id="drop" hidden><div>Drop Excel, CSV or PDF to create a task</div></div>
+<div class="fallback" id="fallback" hidden>
+  <div class="box">
+    <strong>Copy blocked in this view</strong>
+    <span class="note">Press Ctrl+C (Cmd+C on Mac) to copy the selected text.</span>
+    <textarea id="fbText" readonly aria-label="Text to copy"></textarea>
+    <button class="btn" id="fbClose" type="button">Close</button>
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

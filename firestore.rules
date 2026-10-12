@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function email() { return request.auth != null ? request.auth.token.email : ''; }
+    function isManager() {
+      return email() in ['manager1@packscan.local', 'manager2@packscan.local', 'manager3@packscan.local'];
+    }
+    function isPacker() {
+      return email() in ['packer1@packscan.local', 'packer2@packscan.local', 'packer3@packscan.local',
+                         'packer4@packscan.local', 'packer5@packscan.local'];
+    }
+    function isTeam() { return isManager() || isPacker(); }
+
+    match /tasks/{tid} {
+      allow read: if isTeam();
+      allow create, delete: if isManager();
+      // Managers can change anything. A packer can only accept an open task
+      // (or one assigned to them), then update progress and finish it.
+      allow update: if isManager() || (
+        isPacker()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'packer', 'acceptedAt', 'doneAt', 'scanned', 'extra', 'updatedAt'])
+        && (resource.data.packer == null || resource.data.packer == email())
+        && (resource.data.assignedTo == null || resource.data.assignedTo == email())
+        && request.resource.data.packer == email()
+      );
+
+      // The tracking-ID list, written once by the manager who creates the task.
+      match /parts/{part} {
+        allow read: if isTeam();
+        allow write: if isManager();
+      }
+
+      // Scan progress. Only the packer who accepted the task can scan into it.
+      match /progress/{part} {
+        allow read: if isTeam();
+        allow create, delete: if isManager();
+        allow update: if isManager() || (
+          isPacker()
+          && get(/databases/$(database)/documents/tasks/$(tid)).data.packer == email()
+          && get(/databases/$(database)/documents/tasks/$(tid)).data.status == 'accepted'
+        );
+      }
+    }
+  }
+}
