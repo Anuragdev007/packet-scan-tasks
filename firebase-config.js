@@ -1,11 +1,10 @@
-// Paste the config of your Firebase Web app here
-// (Firebase console > Project settings > General > Your apps > SDK setup and configuration > Config).
+// Config of the Firebase Web app (Firebase console > Project settings > General > Your apps).
 // These values are meant to be public: access is controlled by firestore.rules and Firebase Auth.
 export const firebaseConfig = {
-  apiKey: "PASTE_API_KEY",
-  authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
-  projectId: "PASTE_PROJECT_ID",
-  storageBucket: "PASTE_PROJECT_ID.appspot.com",
-  messagingSenderId: "PASTE_SENDER_ID",
-  appId: "PASTE_APP_ID"
+  apiKey: "AIzaSyCEU53ZDltbJt5UTnQ9wPbOqNM920v8LqA",
+  authDomain: "packet-scan-tasks-3n5h6.firebaseapp.com",
+  projectId: "packet-scan-tasks-3n5h6",
+  storageBucket: "packet-scan-tasks-3n5h6.firebasestorage.app",
+  messagingSenderId: "292504731769",
+  appId: "1:292504731769:web:69deb3de989701813a54a8"
 };
