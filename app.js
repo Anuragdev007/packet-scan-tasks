@@ -841,9 +841,30 @@ function scanPhoto(file){
 
 /* ---------- events ---------- */
 $("exportBtn").addEventListener("click",exportReport);
-$("scanBtn").addEventListener("click",function(){var i=$("scanInput");handleScan(i.value);i.value="";i.focus()});
+$("scanBtn").addEventListener("click",function(){submitScanInput();$("scanInput").focus()});
+/* handheld scanners type the code in a fast burst; many send no Enter, so submit once the burst stops.
+   Typing by hand is slower than BURST_MS per character and still waits for Enter. */
+var BURST_MS=60,IDLE_MS=250,burst={t0:0,n:0,timer:0};
+function submitScanInput(){
+  var i=$("scanInput");clearTimeout(burst.timer);burst.timer=0;burst.n=0;
+  var v=i.value;i.value="";
+  if(v.trim())handleScan(v);
+}
 $("scanInput").addEventListener("keydown",function(e){
-  if(e.key==="Enter"||e.key==="Tab"&&this.value.trim()){e.preventDefault();handleScan(this.value);this.value=""}
+  if(e.key==="Enter"||e.keyCode===13||e.key==="Tab"&&this.value.trim()){e.preventDefault();submitScanInput()}
+});
+$("scanInput").addEventListener("input",function(){
+  var now=Date.now(),len=this.value.length;
+  if(!len){burst.n=0;return}
+  if(/[\r\n]/.test(this.value)){submitScanInput();return}
+  if(burst.n===0||len<=1)burst.t0=now;
+  burst.n=len;
+  clearTimeout(burst.timer);
+  burst.timer=setTimeout(function(){
+    var i=$("scanInput"),v=i.value,el=Date.now()-IDLE_MS-burst.t0;
+    /* whole code pasted at once, or every character arrived faster than a person types */
+    if(v.trim().length>=4&&(burst.n>1&&el/(burst.n-1)<BURST_MS||el<=0))submitScanInput();
+  },IDLE_MS);
 });
 $("scanInput").addEventListener("focus",function(){setReady(true)});
 $("scanInput").addEventListener("blur",function(){setReady(false)});
