@@ -390,7 +390,8 @@ function handleScan(raw){
     }else{
       it.s=[ts,0];pushUndo({op:"scan",it:it});writeScan(it,[ts,0]);
       var c=counts();
-      showResult("ok","Scanned",it.id,c.scanned+" of "+c.total+" done · "+c.pending+" left");beep("ok");flashCam("ok");
+      showResult("ok","Scanned",it.id,c.pending?c.scanned+" of "+c.total+" done · "+c.pending+" left":"All "+c.total+" packets scanned. Task completed.");beep("ok");flashCam("ok");
+      autoFinishIfComplete();
     }
   }else{
     var prev=cur.extras[key]||null;
@@ -404,7 +405,7 @@ function toggleManual(key){
   if(isReadOnly())return;
   var it=cur.idx.get(key);if(!it)return;
   if(it.s){pushUndo({op:"unscan",it:it,prev:it.s});it.s=null;writeScan(it,null);showResult("idle","Unmarked",it.id,"Back on the not-scanned list.")}
-  else{it.s=[Date.now(),1];pushUndo({op:"scan",it:it});writeScan(it,it.s);showResult("idle","Marked by hand",it.id,"Counted as scanned.")}
+  else{it.s=[Date.now(),1];pushUndo({op:"scan",it:it});writeScan(it,it.s);showResult("idle","Marked by hand",it.id,"Counted as scanned.");autoFinishIfComplete()}
   renderTask();
 }
 function doUndo(){
@@ -471,12 +472,23 @@ $("finishBtn").addEventListener("click",function(){
     return;
   }
   finishArm=false;clearTimeout(finishT);b.classList.remove("warn");b.textContent="Finish task";
-  clearTimeout(sumT);sumT=0;
-  var tid=cur.tid;
-  queueWrite(function(){return updateDoc(D("tasks/"+tid),{status:"done",doneAt:Date.now(),scanned:c.scanned,extra:c.extra,updatedAt:Date.now()})}).then(function(){
-    toast("Task finished");leaveTask();route();window.scrollTo(0,0);
-  },function(){});
+  finishTask(false);
 });
+/* auto: every packet is scanned, so finish and stay on the task, which turns read-only */
+function finishTask(auto){
+  if(!cur||isReadOnly()||cur.finishing)return;
+  cur.finishing=true;
+  var c=counts(),tid=cur.tid;
+  clearTimeout(sumT);sumT=0;
+  queueWrite(function(){return updateDoc(D("tasks/"+tid),{status:"done",doneAt:Date.now(),scanned:c.scanned,extra:c.extra,updatedAt:Date.now()})}).then(function(){
+    if(auto){toast("All packets scanned. Task moved to Completed.");return}
+    toast("Task finished");leaveTask();route();window.scrollTo(0,0);
+  },function(){if(cur&&cur.tid===tid)cur.finishing=false});
+}
+function autoFinishIfComplete(){
+  var c=counts();
+  if(c.total>0&&c.pending===0)finishTask(true);
+}
 
 /* ---------- libraries (loaded only when needed) ---------- */
 function loadScript(src){
